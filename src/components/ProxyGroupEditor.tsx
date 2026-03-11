@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useConfig } from '../ConfigContext'
 
 interface ProxyGroup {
   id: number
@@ -16,28 +17,40 @@ const GROUP_TYPES = [
   { value: 'load-balance', label: 'load-balance（负载均衡）' },
 ]
 
-const MOCK_NODES = [
-  '🇭🇰 香港 01',
-  '🇭🇰 香港 02',
-  '🇯🇵 日本 01',
-  '🇯🇵 日本 02',
-  '🇺🇸 美国 01',
-  '🇸🇬 新加坡 01',
-  '🇰🇷 韩国 01',
-  '🇩🇪 德国 01',
-]
-
-let nextId = 1
+let nextId = 100000
 
 export default function ProxyGroupEditor() {
+  const { config } = useConfig()
   const [name, setName] = useState('')
   const [type, setType] = useState('select')
   const [selectedNodes, setSelectedNodes] = useState<string[]>([])
   const [testUrl, setTestUrl] = useState('http://www.gstatic.com/generate_204')
-  const [interval, setInterval] = useState(300)
+  const [testInterval, setTestInterval] = useState(300)
   const [groups, setGroups] = useState<ProxyGroup[]>([])
 
+  // Available nodes from parsed config
+  const availableNodes = useMemo(() => {
+    if (!config) return []
+    return config.proxyNames
+  }, [config])
+
   const needsTestConfig = type === 'url-test' || type === 'fallback'
+
+  // Pre-fill groups from config when imported
+  useEffect(() => {
+    if (config && config.proxyGroups.length > 0) {
+      setGroups(
+        config.proxyGroups.map((g, i) => ({
+          id: i + 1,
+          name: g.name,
+          type: g.type,
+          proxies: g.proxies,
+          url: g.url,
+          interval: g.interval,
+        }))
+      )
+    }
+  }, [config])
 
   const toggleNode = (node: string) => {
     setSelectedNodes(prev =>
@@ -45,6 +58,14 @@ export default function ProxyGroupEditor() {
         ? prev.filter(n => n !== node)
         : [...prev, node]
     )
+  }
+
+  const selectAll = () => {
+    setSelectedNodes([...availableNodes])
+  }
+
+  const clearSelection = () => {
+    setSelectedNodes([])
   }
 
   const addGroup = () => {
@@ -57,7 +78,7 @@ export default function ProxyGroupEditor() {
     }
     if (needsTestConfig) {
       group.url = testUrl
-      group.interval = interval
+      group.interval = testInterval
     }
     setGroups(prev => [...prev, group])
     setName('')
@@ -127,8 +148,8 @@ export default function ProxyGroupEditor() {
             <input
               id="test-interval-input"
               type="number"
-              value={interval}
-              onChange={e => setInterval(Number(e.target.value))}
+              value={testInterval}
+              onChange={e => setTestInterval(Number(e.target.value))}
               min={30}
               className="input-base w-24"
             />
@@ -138,33 +159,63 @@ export default function ProxyGroupEditor() {
 
       {/* Node selection */}
       <div>
-        <label className="block text-xs text-text-secondary font-medium mb-2">
-          包含节点
-          {selectedNodes.length > 0 && (
-            <span className="ml-2 text-accent">已选 {selectedNodes.length}</span>
-          )}
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {MOCK_NODES.map(node => {
-            const isSelected = selectedNodes.includes(node)
-            return (
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-xs text-text-secondary font-medium">
+            包含节点
+            {selectedNodes.length > 0 && (
+              <span className="ml-2 text-accent">已选 {selectedNodes.length}</span>
+            )}
+          </label>
+          {availableNodes.length > 0 && (
+            <div className="flex gap-3">
               <button
-                key={node}
-                onClick={() => toggleNode(node)}
-                className={`
-                  px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer
-                  border
-                  ${isSelected
-                    ? 'bg-accent/15 border-accent text-accent shadow-sm shadow-accent-glow'
-                    : 'bg-bg-input border-border-default text-text-secondary hover:border-accent/40 hover:text-text-primary'
-                  }
-                `}
+                onClick={selectAll}
+                className="text-xs text-accent hover:text-accent-hover transition-colors cursor-pointer"
               >
-                {node}
+                全选
               </button>
-            )
-          })}
+              <button
+                onClick={clearSelection}
+                className="text-xs text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+              >
+                清空
+              </button>
+            </div>
+          )}
         </div>
+
+        {availableNodes.length > 0 ? (
+          <div className="flex flex-wrap gap-2 max-h-[200px] overflow-y-auto pr-1">
+            {availableNodes.map(node => {
+              const isSelected = selectedNodes.includes(node)
+              return (
+                <button
+                  key={node}
+                  onClick={() => toggleNode(node)}
+                  className={`
+                    px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer
+                    border
+                    ${isSelected
+                      ? 'bg-accent/15 border-accent text-accent shadow-sm shadow-accent-glow'
+                      : 'bg-bg-input border-border-default text-text-secondary hover:border-accent/40 hover:text-text-primary'
+                    }
+                  `}
+                >
+                  {node}
+                </button>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-bg-input border border-border-default">
+            <svg className="w-4 h-4 text-text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-xs text-text-muted">
+              请先在上方导入配置，节点列表将自动加载。
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Add Button */}
@@ -221,11 +272,16 @@ export default function ProxyGroupEditor() {
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-2">
-                  {group.proxies.map(p => (
+                  {group.proxies.slice(0, 10).map(p => (
                     <span key={p} className="text-xs px-2 py-0.5 rounded bg-bg-card text-text-secondary">
                       {p}
                     </span>
                   ))}
+                  {group.proxies.length > 10 && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-bg-card text-text-muted">
+                      +{group.proxies.length - 10} 更多
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
@@ -239,7 +295,9 @@ export default function ProxyGroupEditor() {
           <svg className="w-10 h-10 mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
-          <span className="text-sm">暂无策略组，请在上方添加</span>
+          <span className="text-sm">
+            {config ? '已导入配置，可在上方创建新策略组' : '暂无策略组，请先导入配置或手动添加'}
+          </span>
         </div>
       )}
     </div>

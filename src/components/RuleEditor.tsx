@@ -1,11 +1,6 @@
-import { useState } from 'react'
-
-interface Rule {
-  id: number
-  target: string
-  type: string
-  proxy: string
-}
+import { useState, useEffect, useMemo } from 'react'
+import { useConfig } from '../ConfigContext'
+import type { ClashRule } from '../types'
 
 const RULE_TYPES = [
   'DOMAIN',
@@ -16,31 +11,45 @@ const RULE_TYPES = [
   'MATCH',
 ]
 
-const MOCK_PROXIES = [
-  'DIRECT',
-  'REJECT',
-  '🇭🇰 香港节点',
-  '🇯🇵 日本节点',
-  '🇺🇸 美国节点',
-  '🇸🇬 新加坡节点',
-  '🚀 自动选择',
-  '♻️ 故障转移',
-]
+const BUILTIN_PROXIES = ['DIRECT', 'REJECT']
 
-let nextId = 1
+let nextId = 100000
 
 export default function RuleEditor() {
+  const { config } = useConfig()
   const [target, setTarget] = useState('')
   const [ruleType, setRuleType] = useState('DOMAIN-SUFFIX')
   const [proxy, setProxy] = useState('DIRECT')
-  const [rules, setRules] = useState<Rule[]>([])
+  const [rules, setRules] = useState<ClashRule[]>([])
+
+  // Build proxy options from parsed config
+  const proxyOptions = useMemo(() => {
+    if (!config) return BUILTIN_PROXIES
+    const names = [
+      ...BUILTIN_PROXIES,
+      ...config.proxyGroupNames,
+      ...config.proxyNames,
+    ]
+    return [...new Set(names)] // deduplicate
+  }, [config])
+
+  // Pre-fill rules from config when imported
+  useEffect(() => {
+    if (config && config.rules.length > 0) {
+      setRules(config.rules)
+    }
+  }, [config])
 
   const addRule = () => {
     if (!target.trim()) return
-    setRules(prev => [
-      ...prev,
-      { id: nextId++, target: target.trim(), type: ruleType, proxy },
-    ])
+    const newRule: ClashRule = {
+      id: nextId++,
+      target: target.trim(),
+      type: ruleType,
+      proxy,
+      raw: `${ruleType},${target.trim()},${proxy}`,
+    }
+    setRules(prev => [...prev, newRule])
     setTarget('')
   }
 
@@ -100,7 +109,7 @@ export default function RuleEditor() {
             onChange={e => setProxy(e.target.value)}
             className="select-base"
           >
-            {MOCK_PROXIES.map(p => (
+            {proxyOptions.map(p => (
               <option key={p} value={p}>{p}</option>
             ))}
           </select>
@@ -144,7 +153,7 @@ export default function RuleEditor() {
                   {rule.type}
                 </span>
                 <span className="text-sm text-text-primary font-mono flex-1 truncate">
-                  {rule.target}
+                  {rule.target || '(MATCH)'}
                 </span>
                 <span className="text-xs text-text-secondary">→</span>
                 <span className="text-sm text-accent-hover font-medium">
@@ -171,7 +180,9 @@ export default function RuleEditor() {
           <svg className="w-10 h-10 mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <span className="text-sm">暂无规则，请在上方添加</span>
+          <span className="text-sm">
+            {config ? '已导入配置，可在上方添加新规则' : '暂无规则，请先导入配置或手动添加'}
+          </span>
         </div>
       )}
     </div>

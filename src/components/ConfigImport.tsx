@@ -1,12 +1,16 @@
 import { useState } from 'react'
+import { useConfig } from '../ConfigContext'
+import { parseClashYaml, fetchSubscription } from '../utils/parser'
 
 type ImportMode = 'paste' | 'url' | 'file'
 
 export default function ConfigImport() {
+  const { setConfig, importStatus, setImportStatus } = useConfig()
   const [mode, setMode] = useState<ImportMode>('paste')
   const [pasteText, setPasteText] = useState('')
   const [subUrl, setSubUrl] = useState('')
   const [fileName, setFileName] = useState('')
+  const [fileContent, setFileContent] = useState('')
 
   const tabs: { key: ImportMode; icon: string; label: string }[] = [
     { key: 'paste', icon: '📋', label: '粘贴文本' },
@@ -14,15 +18,71 @@ export default function ConfigImport() {
     { key: 'file', icon: '📁', label: '导入文件' },
   ]
 
+  /** Core import handler: parses text and updates context */
+  const doImport = (text: string, source: string) => {
+    try {
+      const config = parseClashYaml(text)
+      setConfig(config)
+      setImportStatus({
+        state: 'success',
+        proxyCount: config.proxyNames.length,
+        groupCount: config.proxyGroups.length,
+        ruleCount: config.rules.length,
+      })
+    } catch (e) {
+      setImportStatus({
+        state: 'error',
+        message: `${source}失败: ${e instanceof Error ? e.message : String(e)}`,
+      })
+    }
+  }
+
+  /** Paste import */
+  const handlePasteImport = () => {
+    if (!pasteText.trim()) return
+    doImport(pasteText, '文本解析')
+  }
+
+  /** URL import */
+  const handleUrlImport = async () => {
+    if (!subUrl.trim()) return
+    setImportStatus({ state: 'loading', message: '正在获取订阅...' })
+    try {
+      const text = await fetchSubscription(subUrl.trim())
+      doImport(text, '订阅获取')
+    } catch (e) {
+      setImportStatus({
+        state: 'error',
+        message: `订阅获取失败: ${e instanceof Error ? e.message : String(e)}`,
+      })
+    }
+  }
+
+  /** File read */
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault()
     const file = e.dataTransfer.files[0]
-    if (file) setFileName(file.name)
+    if (file) readFile(file)
   }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) setFileName(file.name)
+    if (file) readFile(file)
+  }
+
+  const readFile = (file: File) => {
+    setFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = () => {
+      const text = reader.result as string
+      setFileContent(text)
+    }
+    reader.readAsText(file)
+  }
+
+  const handleFileImport = () => {
+    if (!fileContent) return
+    doImport(fileContent, '文件解析')
   }
 
   return (
@@ -75,9 +135,11 @@ export default function ConfigImport() {
               </span>
               <button
                 id="import-paste-btn"
+                onClick={handlePasteImport}
+                disabled={!pasteText.trim()}
                 className="px-5 py-2 bg-accent hover:bg-accent-hover text-white text-sm font-medium
                            rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-accent-glow
-                           active:scale-[0.97] cursor-pointer"
+                           active:scale-[0.97] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 导入配置
               </button>
@@ -96,14 +158,18 @@ export default function ConfigImport() {
                 onChange={e => setSubUrl(e.target.value)}
                 placeholder="https://example.com/subscribe?token=..."
                 className="input-base flex-1"
+                onKeyDown={e => e.key === 'Enter' && handleUrlImport()}
               />
               <button
                 id="fetch-sub-btn"
+                onClick={handleUrlImport}
+                disabled={!subUrl.trim() || importStatus.state === 'loading'}
                 className="px-5 py-2.5 bg-accent hover:bg-accent-hover text-white text-sm font-medium
                            rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-accent-glow
-                           active:scale-[0.97] whitespace-nowrap cursor-pointer"
+                           active:scale-[0.97] whitespace-nowrap cursor-pointer
+                           disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                获取配置
+                {importStatus.state === 'loading' ? '获取中...' : '获取配置'}
               </button>
             </div>
             <div className="flex items-center gap-2 p-3 rounded-lg bg-bg-input border border-border-default">
@@ -157,6 +223,7 @@ export default function ConfigImport() {
               <div className="flex justify-end">
                 <button
                   id="import-file-btn"
+                  onClick={handleFileImport}
                   className="px-5 py-2 bg-accent hover:bg-accent-hover text-white text-sm font-medium
                              rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-accent-glow
                              active:scale-[0.97] cursor-pointer"
@@ -168,6 +235,39 @@ export default function ConfigImport() {
           </div>
         )}
       </div>
+
+      {/* Import Status Banner */}
+      {importStatus.state === 'loading' && (
+        <div className="mt-4 flex items-center gap-3 p-3 rounded-lg bg-accent/10 border border-accent/20">
+          <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-accent">{importStatus.message}</span>
+        </div>
+      )}
+
+      {importStatus.state === 'success' && (
+        <div className="mt-4 p-4 rounded-lg bg-success/10 border border-success/20">
+          <div className="flex items-center gap-2 mb-2">
+            <svg className="w-4 h-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="text-sm font-medium text-success">配置导入成功</span>
+          </div>
+          <div className="flex gap-6 text-xs text-text-secondary">
+            <span>🔌 代理节点: <span className="text-text-primary font-medium">{importStatus.proxyCount}</span></span>
+            <span>🗂️ 策略组: <span className="text-text-primary font-medium">{importStatus.groupCount}</span></span>
+            <span>📜 规则: <span className="text-text-primary font-medium">{importStatus.ruleCount}</span></span>
+          </div>
+        </div>
+      )}
+
+      {importStatus.state === 'error' && (
+        <div className="mt-4 flex items-center gap-2 p-3 rounded-lg bg-danger/10 border border-danger/20">
+          <svg className="w-4 h-4 text-danger shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="text-sm text-danger">{importStatus.message}</span>
+        </div>
+      )}
     </section>
   )
 }
