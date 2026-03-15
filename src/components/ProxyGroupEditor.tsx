@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useConfig, type ProxyGroupEdited } from '../ConfigContext'
 
 const GROUP_TYPES = [
@@ -37,21 +37,7 @@ export default function ProxyGroupEditor() {
 
   const needsTestConfig = type === 'url-test' || type === 'fallback'
 
-  // Pre-fill groups from config when imported
-  useEffect(() => {
-    if (config && config.proxyGroups.length > 0) {
-      setEditedGroups(
-        config.proxyGroups.map((g, i) => ({
-          id: i + 1,
-          name: g.name,
-          type: g.type,
-          proxies: g.proxies,
-          url: g.url,
-          interval: g.interval,
-        }))
-      )
-    }
-  }, [config, setEditedGroups])
+
 
   // Filtered groups for display
   const filteredGroups = useMemo(() => {

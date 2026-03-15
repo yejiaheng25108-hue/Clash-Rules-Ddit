@@ -5,7 +5,7 @@ import { parseClashYaml, fetchSubscription } from '../utils/parser'
 type ImportMode = 'paste' | 'url' | 'file'
 
 export default function ConfigImport() {
-  const { setConfig, importStatus, setImportStatus } = useConfig()
+  const { setConfig, importStatus, setImportStatus, setEditedRules, setEditedGroups } = useConfig()
   const [mode, setMode] = useState<ImportMode>('paste')
   const [pasteText, setPasteText] = useState('')
   const [subUrl, setSubUrl] = useState('')
@@ -23,6 +23,17 @@ export default function ConfigImport() {
     try {
       const config = parseClashYaml(text)
       setConfig(config)
+      setEditedRules(config.rules)
+      setEditedGroups(
+        config.proxyGroups.map((g, i) => ({
+          id: i + 1,
+          name: g.name,
+          type: g.type,
+          proxies: g.proxies,
+          url: g.url,
+          interval: g.interval,
+        }))
+      )
       setImportStatus({
         state: 'success',
         proxyCount: config.proxyNames.length,

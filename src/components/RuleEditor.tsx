@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useConfig } from '../ConfigContext'
 import type { ClashRule } from '../types'
 
@@ -36,12 +36,7 @@ export default function RuleEditor() {
     return [...new Set(names)]
   }, [config])
 
-  // Pre-fill rules from config when imported
-  useEffect(() => {
-    if (config && config.rules.length > 0) {
-      setEditedRules(config.rules)
-    }
-  }, [config, setEditedRules])
+
 
   // Filtered rules based on search
   const filteredRules = useMemo(() => {
