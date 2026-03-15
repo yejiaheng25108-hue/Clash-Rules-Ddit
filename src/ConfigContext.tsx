@@ -1,11 +1,25 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
-import type { ClashConfig } from './types'
+import type { ClashConfig, ClashRule } from './types'
+
+interface ProxyGroupEdited {
+  id: number
+  name: string
+  type: string
+  proxies: string[]
+  url?: string
+  interval?: number
+}
 
 interface ConfigContextValue {
   config: ClashConfig | null
   setConfig: (config: ClashConfig | null) => void
   importStatus: ImportStatus
   setImportStatus: (status: ImportStatus) => void
+  // Edited data for generate
+  editedRules: ClashRule[]
+  setEditedRules: (rules: ClashRule[]) => void
+  editedGroups: ProxyGroupEdited[]
+  setEditedGroups: (groups: ProxyGroupEdited[]) => void
 }
 
 export type ImportStatus =
@@ -14,14 +28,23 @@ export type ImportStatus =
   | { state: 'success'; proxyCount: number; groupCount: number; ruleCount: number }
   | { state: 'error'; message: string }
 
+export type { ProxyGroupEdited }
+
 const ConfigContext = createContext<ConfigContextValue | null>(null)
 
 export function ConfigProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<ClashConfig | null>(null)
   const [importStatus, setImportStatus] = useState<ImportStatus>({ state: 'idle' })
+  const [editedRules, setEditedRules] = useState<ClashRule[]>([])
+  const [editedGroups, setEditedGroups] = useState<ProxyGroupEdited[]>([])
 
   return (
-    <ConfigContext.Provider value={{ config, setConfig, importStatus, setImportStatus }}>
+    <ConfigContext.Provider value={{
+      config, setConfig,
+      importStatus, setImportStatus,
+      editedRules, setEditedRules,
+      editedGroups, setEditedGroups,
+    }}>
       {children}
     </ConfigContext.Provider>
   )

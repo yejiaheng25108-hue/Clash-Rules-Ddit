@@ -16,11 +16,14 @@ const BUILTIN_PROXIES = ['DIRECT', 'REJECT']
 let nextId = 100000
 
 export default function RuleEditor() {
-  const { config } = useConfig()
+  const { config, editedRules, setEditedRules } = useConfig()
   const [target, setTarget] = useState('')
   const [ruleType, setRuleType] = useState('DOMAIN-SUFFIX')
   const [proxy, setProxy] = useState('DIRECT')
-  const [rules, setRules] = useState<ClashRule[]>([])
+  const [search, setSearch] = useState('')
+
+  // Alias for clarity
+  const rules = editedRules
 
   // Build proxy options from parsed config
   const proxyOptions = useMemo(() => {
@@ -30,15 +33,27 @@ export default function RuleEditor() {
       ...config.proxyGroupNames,
       ...config.proxyNames,
     ]
-    return [...new Set(names)] // deduplicate
+    return [...new Set(names)]
   }, [config])
 
   // Pre-fill rules from config when imported
   useEffect(() => {
     if (config && config.rules.length > 0) {
-      setRules(config.rules)
+      setEditedRules(config.rules)
     }
-  }, [config])
+  }, [config, setEditedRules])
+
+  // Filtered rules based on search
+  const filteredRules = useMemo(() => {
+    if (!search.trim()) return rules
+    const q = search.toLowerCase()
+    return rules.filter(
+      r =>
+        r.target.toLowerCase().includes(q) ||
+        r.type.toLowerCase().includes(q) ||
+        r.proxy.toLowerCase().includes(q)
+    )
+  }, [rules, search])
 
   const addRule = () => {
     if (!target.trim()) return
@@ -49,12 +64,12 @@ export default function RuleEditor() {
       proxy,
       raw: `${ruleType},${target.trim()},${proxy}`,
     }
-    setRules(prev => [...prev, newRule])
+    setEditedRules([...rules, newRule])
     setTarget('')
   }
 
   const removeRule = (id: number) => {
-    setRules(prev => prev.filter(r => r.id !== id))
+    setEditedRules(rules.filter(r => r.id !== id))
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -65,7 +80,6 @@ export default function RuleEditor() {
     <div className="space-y-5">
       {/* Input Row */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-3 items-end">
-        {/* Target */}
         <div>
           <label className="block text-xs text-text-secondary font-medium mb-1.5">
             目标地址
@@ -80,8 +94,6 @@ export default function RuleEditor() {
             className="input-base"
           />
         </div>
-
-        {/* Rule Type */}
         <div>
           <label className="block text-xs text-text-secondary font-medium mb-1.5">
             规则类型
@@ -97,8 +109,6 @@ export default function RuleEditor() {
             ))}
           </select>
         </div>
-
-        {/* Proxy */}
         <div>
           <label className="block text-xs text-text-secondary font-medium mb-1.5">
             代理节点
@@ -114,8 +124,6 @@ export default function RuleEditor() {
             ))}
           </select>
         </div>
-
-        {/* Add Button */}
         <button
           id="add-rule-btn"
           onClick={addRule}
@@ -127,50 +135,83 @@ export default function RuleEditor() {
         </button>
       </div>
 
-      {/* Rules List */}
+      {/* Search + Stats */}
       {rules.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-text-muted font-medium">
-              已添加 {rules.length} 条规则
-            </span>
-            <button
-              onClick={() => setRules([])}
-              className="text-xs text-danger hover:text-danger-hover transition-colors cursor-pointer"
-            >
-              全部清除
-            </button>
-          </div>
-          <div className="space-y-1.5 max-h-[240px] overflow-y-auto pr-1">
-            {rules.map(rule => (
-              <div
-                key={rule.id}
-                className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-bg-input
-                           border border-border-default hover:border-accent/30
-                           transition-all duration-200 group"
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              id="rule-search-input"
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="搜索规则（域名、类型、代理）..."
+              className="input-base pl-9 py-2 text-sm"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary
+                           transition-colors cursor-pointer"
               >
-                <span className="text-xs font-mono px-2 py-0.5 rounded bg-accent/15 text-accent font-medium">
-                  {rule.type}
-                </span>
-                <span className="text-sm text-text-primary font-mono flex-1 truncate">
-                  {rule.target || '(MATCH)'}
-                </span>
-                <span className="text-xs text-text-secondary">→</span>
-                <span className="text-sm text-accent-hover font-medium">
-                  {rule.proxy}
-                </span>
-                <button
-                  onClick={() => removeRule(rule.id)}
-                  className="ml-2 opacity-0 group-hover:opacity-100 text-text-muted hover:text-danger
-                             transition-all duration-200 cursor-pointer"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            ))}
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
+          <span className="text-xs text-text-muted whitespace-nowrap">
+            {search ? `${filteredRules.length} / ${rules.length}` : `${rules.length} 条`}
+          </span>
+          <button
+            onClick={() => setEditedRules([])}
+            className="text-xs text-danger hover:text-danger-hover transition-colors cursor-pointer whitespace-nowrap"
+          >
+            全部清除
+          </button>
+        </div>
+      )}
+
+      {/* Rules List */}
+      {filteredRules.length > 0 && (
+        <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1">
+          {filteredRules.map(rule => (
+            <div
+              key={rule.id}
+              className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-bg-input
+                         border border-border-default hover:border-accent/30
+                         transition-all duration-200 group"
+            >
+              <span className="text-xs font-mono px-2 py-0.5 rounded bg-accent/15 text-accent font-medium shrink-0">
+                {rule.type}
+              </span>
+              <span className="text-sm text-text-primary font-mono flex-1 truncate">
+                {rule.target || '(MATCH)'}
+              </span>
+              <span className="text-xs text-text-secondary">→</span>
+              <span className="text-sm text-accent-hover font-medium shrink-0">
+                {rule.proxy}
+              </span>
+              <button
+                onClick={() => removeRule(rule.id)}
+                className="ml-2 opacity-0 group-hover:opacity-100 text-text-muted hover:text-danger
+                           transition-all duration-200 cursor-pointer shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Search no results */}
+      {rules.length > 0 && search && filteredRules.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-6 text-text-muted">
+          <span className="text-sm">未找到匹配 "<span className="text-accent">{search}</span>" 的规则</span>
         </div>
       )}
 

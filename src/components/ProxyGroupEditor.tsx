@@ -1,14 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useConfig } from '../ConfigContext'
-
-interface ProxyGroup {
-  id: number
-  name: string
-  type: string
-  proxies: string[]
-  url?: string
-  interval?: number
-}
+import { useConfig, type ProxyGroupEdited } from '../ConfigContext'
 
 const GROUP_TYPES = [
   { value: 'select', label: 'select（手动选择）' },
@@ -20,13 +11,16 @@ const GROUP_TYPES = [
 let nextId = 100000
 
 export default function ProxyGroupEditor() {
-  const { config } = useConfig()
+  const { config, editedGroups, setEditedGroups } = useConfig()
   const [name, setName] = useState('')
   const [type, setType] = useState('select')
   const [selectedNodes, setSelectedNodes] = useState<string[]>([])
   const [testUrl, setTestUrl] = useState('http://www.gstatic.com/generate_204')
   const [testInterval, setTestInterval] = useState(300)
-  const [groups, setGroups] = useState<ProxyGroup[]>([])
+  const [search, setSearch] = useState('')
+  const [nodeSearch, setNodeSearch] = useState('')
+
+  const groups = editedGroups
 
   // Available nodes from parsed config
   const availableNodes = useMemo(() => {
@@ -34,12 +28,19 @@ export default function ProxyGroupEditor() {
     return config.proxyNames
   }, [config])
 
+  // Filtered nodes for selection
+  const filteredNodes = useMemo(() => {
+    if (!nodeSearch.trim()) return availableNodes
+    const q = nodeSearch.toLowerCase()
+    return availableNodes.filter(n => n.toLowerCase().includes(q))
+  }, [availableNodes, nodeSearch])
+
   const needsTestConfig = type === 'url-test' || type === 'fallback'
 
   // Pre-fill groups from config when imported
   useEffect(() => {
     if (config && config.proxyGroups.length > 0) {
-      setGroups(
+      setEditedGroups(
         config.proxyGroups.map((g, i) => ({
           id: i + 1,
           name: g.name,
@@ -50,7 +51,19 @@ export default function ProxyGroupEditor() {
         }))
       )
     }
-  }, [config])
+  }, [config, setEditedGroups])
+
+  // Filtered groups for display
+  const filteredGroups = useMemo(() => {
+    if (!search.trim()) return groups
+    const q = search.toLowerCase()
+    return groups.filter(
+      g =>
+        g.name.toLowerCase().includes(q) ||
+        g.type.toLowerCase().includes(q) ||
+        g.proxies.some(p => p.toLowerCase().includes(q))
+    )
+  }, [groups, search])
 
   const toggleNode = (node: string) => {
     setSelectedNodes(prev =>
@@ -61,7 +74,9 @@ export default function ProxyGroupEditor() {
   }
 
   const selectAll = () => {
-    setSelectedNodes([...availableNodes])
+    // Select all currently visible (filtered) nodes
+    const toAdd = filteredNodes.filter(n => !selectedNodes.includes(n))
+    setSelectedNodes(prev => [...prev, ...toAdd])
   }
 
   const clearSelection = () => {
@@ -70,7 +85,7 @@ export default function ProxyGroupEditor() {
 
   const addGroup = () => {
     if (!name.trim() || selectedNodes.length === 0) return
-    const group: ProxyGroup = {
+    const group: ProxyGroupEdited = {
       id: nextId++,
       name: name.trim(),
       type,
@@ -80,20 +95,19 @@ export default function ProxyGroupEditor() {
       group.url = testUrl
       group.interval = testInterval
     }
-    setGroups(prev => [...prev, group])
+    setEditedGroups([...groups, group])
     setName('')
     setSelectedNodes([])
   }
 
   const removeGroup = (id: number) => {
-    setGroups(prev => prev.filter(g => g.id !== id))
+    setEditedGroups(groups.filter(g => g.id !== id))
   }
 
   return (
     <div className="space-y-5">
       {/* Group Config */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Name */}
         <div>
           <label className="block text-xs text-text-secondary font-medium mb-1.5">
             策略组名称
@@ -107,8 +121,6 @@ export default function ProxyGroupEditor() {
             className="input-base"
           />
         </div>
-
-        {/* Type */}
         <div>
           <label className="block text-xs text-text-secondary font-medium mb-1.5">
             策略组类型
@@ -184,9 +196,37 @@ export default function ProxyGroupEditor() {
           )}
         </div>
 
+        {/* Node search */}
+        {availableNodes.length > 5 && (
+          <div className="relative mb-2">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              id="node-search-input"
+              type="text"
+              value={nodeSearch}
+              onChange={e => setNodeSearch(e.target.value)}
+              placeholder="搜索节点..."
+              className="input-base pl-9 py-1.5 text-sm"
+            />
+            {nodeSearch && (
+              <button
+                onClick={() => setNodeSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary
+                           transition-colors cursor-pointer"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
+
         {availableNodes.length > 0 ? (
           <div className="flex flex-wrap gap-2 max-h-[200px] overflow-y-auto pr-1">
-            {availableNodes.map(node => {
+            {filteredNodes.map(node => {
               const isSelected = selectedNodes.includes(node)
               return (
                 <button
@@ -205,6 +245,9 @@ export default function ProxyGroupEditor() {
                 </button>
               )
             })}
+            {nodeSearch && filteredNodes.length === 0 && (
+              <span className="text-xs text-text-muted py-2">未找到匹配的节点</span>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-bg-input border border-border-default">
@@ -233,59 +276,92 @@ export default function ProxyGroupEditor() {
         </button>
       </div>
 
-      {/* Groups List */}
+      {/* Search bar for groups list */}
       {groups.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-text-muted font-medium">
-              已添加 {groups.length} 个策略组
-            </span>
-            <button
-              onClick={() => setGroups([])}
-              className="text-xs text-danger hover:text-danger-hover transition-colors cursor-pointer"
-            >
-              全部清除
-            </button>
-          </div>
-          <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
-            {groups.map(group => (
-              <div
-                key={group.id}
-                className="px-4 py-3 rounded-lg bg-bg-input border border-border-default
-                           hover:border-accent/30 transition-all duration-200 group"
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              id="group-search-input"
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="搜索策略组（名称、类型、节点）..."
+              className="input-base pl-9 py-2 text-sm"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary
+                           transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-text-primary">{group.name}</span>
-                  <span className="text-xs font-mono px-2 py-0.5 rounded bg-accent/15 text-accent">
-                    {group.type}
-                  </span>
-                  <span className="flex-1" />
-                  <span className="text-xs text-text-muted">{group.proxies.length} 个节点</span>
-                  <button
-                    onClick={() => removeGroup(group.id)}
-                    className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-danger
-                               transition-all duration-200 cursor-pointer"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {group.proxies.slice(0, 10).map(p => (
-                    <span key={p} className="text-xs px-2 py-0.5 rounded bg-bg-card text-text-secondary">
-                      {p}
-                    </span>
-                  ))}
-                  {group.proxies.length > 10 && (
-                    <span className="text-xs px-2 py-0.5 rounded bg-bg-card text-text-muted">
-                      +{group.proxies.length - 10} 更多
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
+          <span className="text-xs text-text-muted whitespace-nowrap">
+            {search ? `${filteredGroups.length} / ${groups.length}` : `${groups.length} 个`}
+          </span>
+          <button
+            onClick={() => setEditedGroups([])}
+            className="text-xs text-danger hover:text-danger-hover transition-colors cursor-pointer whitespace-nowrap"
+          >
+            全部清除
+          </button>
+        </div>
+      )}
+
+      {/* Groups List */}
+      {filteredGroups.length > 0 && (
+        <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+          {filteredGroups.map(group => (
+            <div
+              key={group.id}
+              className="px-4 py-3 rounded-lg bg-bg-input border border-border-default
+                         hover:border-accent/30 transition-all duration-200 group"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-text-primary">{group.name}</span>
+                <span className="text-xs font-mono px-2 py-0.5 rounded bg-accent/15 text-accent">
+                  {group.type}
+                </span>
+                <span className="flex-1" />
+                <span className="text-xs text-text-muted">{group.proxies.length} 个节点</span>
+                <button
+                  onClick={() => removeGroup(group.id)}
+                  className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-danger
+                             transition-all duration-200 cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {group.proxies.slice(0, 10).map(p => (
+                  <span key={p} className="text-xs px-2 py-0.5 rounded bg-bg-card text-text-secondary">
+                    {p}
+                  </span>
+                ))}
+                {group.proxies.length > 10 && (
+                  <span className="text-xs px-2 py-0.5 rounded bg-bg-card text-text-muted">
+                    +{group.proxies.length - 10} 更多
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Search no results */}
+      {groups.length > 0 && search && filteredGroups.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-6 text-text-muted">
+          <span className="text-sm">未找到匹配 "<span className="text-accent">{search}</span>" 的策略组</span>
         </div>
       )}
 
