@@ -92,7 +92,7 @@ export default function ConfigImport() {
 
   return (
     <div className="space-y-6">
-      <div className="flex bg-bg-card-hover rounded-lg p-1 w-full md:w-80 border border-border-default md:ml-auto shadow-sm">
+      <div className="flex bg-bg-card-hover rounded-lg p-1 w-full md:w-80 border border-border-default mx-auto shadow-sm">
         <button 
           onClick={() => setMode('paste')}
           className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${mode === 'paste' ? 'bg-white shadow-sm text-accent' : 'text-text-secondary hover:text-text-primary'}`}
@@ -158,7 +158,7 @@ export default function ConfigImport() {
                   value={subUrl}
                   onChange={e => setSubUrl(e.target.value)}
                   placeholder="https://provider.com/subscribe?token=xyz123..."
-                  className="input-base pl-11 py-3 text-[13px] bg-[#fafafa]"
+                  className="input-base !pl-11 py-3 text-[13px] bg-[#fafafa]"
                   onKeyDown={e => e.key === 'Enter' && handleUrlImport()}
                 />
               </div>
