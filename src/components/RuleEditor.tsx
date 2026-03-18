@@ -51,20 +51,59 @@ export default function RuleEditor() {
   }, [rules, search])
 
   const addRule = () => {
-    if (!target.trim()) return
+    if (!target.trim() && ruleType !== 'MATCH') return
     const newRule: ClashRule = {
       id: nextId++,
-      target: target.trim(),
+      target: ruleType === 'MATCH' ? '' : target.trim(),
       type: ruleType,
       proxy,
       raw: `${ruleType},${target.trim()},${proxy}`,
+      isCustom: true,
     }
-    setEditedRules([...rules, newRule])
-    setTarget('')
+    // Add custom rule to the top
+    setEditedRules([newRule, ...rules])
+    if (ruleType !== 'MATCH') setTarget('')
   }
 
   const removeRule = (id: number) => {
     setEditedRules(rules.filter(r => r.id !== id))
+  }
+
+  const sortAndDedupRules = () => {
+    // 1. 确定排序优先级 (0 最高，4 最低)
+    const getCategory = (r: ClashRule) => {
+      if (r.isCustom) return 0 // 用户自定义规则
+      if (r.type === 'MATCH') return 4 // 兜底规则
+      if (r.type.includes('IP') || r.type.includes('GEO')) return 3 // IP与地理位置
+      if (r.proxy === 'DIRECT' || r.proxy === 'REJECT') return 2 // 国内直连规则
+      return 1 // 国外代理规则
+    }
+
+    // 2. 排序
+    const sorted = [...rules].sort((a, b) => {
+      const catA = getCategory(a)
+      const catB = getCategory(b)
+      if (catA !== catB) return catA - catB
+
+      const typeCompare = a.type.localeCompare(b.type)
+      if (typeCompare !== 0) return typeCompare
+
+      return (a.target || '').localeCompare(b.target || '')
+    })
+
+    // 3. 去重 (保留第一次出现的 type+target)
+    const seen = new Set<string>()
+    const deduped: ClashRule[] = []
+
+    for (const r of sorted) {
+      const key = `${r.type}:${r.target}`
+      if (!seen.has(key)) {
+        seen.add(key)
+        deduped.push(r)
+      }
+    }
+
+    setEditedRules(deduped)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -161,6 +200,12 @@ export default function RuleEditor() {
             {search ? `${filteredRules.length} / ${rules.length}` : `${rules.length} 条`}
           </span>
           <button
+            onClick={sortAndDedupRules}
+            className="text-xs text-accent hover:text-accent-hover transition-colors cursor-pointer whitespace-nowrap"
+          >
+            排序去重
+          </button>
+          <button
             onClick={() => setEditedRules([])}
             className="text-xs text-danger hover:text-danger-hover transition-colors cursor-pointer whitespace-nowrap"
           >
@@ -189,6 +234,11 @@ export default function RuleEditor() {
               <span className="text-sm text-accent-hover font-medium shrink-0">
                 {rule.proxy}
               </span>
+              {rule.isCustom && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/20 text-accent font-medium shrink-0 ml-1">
+                  自定义
+                </span>
+              )}
               <button
                 onClick={() => removeRule(rule.id)}
                 className="ml-2 opacity-0 group-hover:opacity-100 text-text-muted hover:text-danger

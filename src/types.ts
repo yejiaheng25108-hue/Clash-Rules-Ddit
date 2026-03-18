@@ -26,6 +26,7 @@ export interface ClashRule {
   target: string
   proxy: string
   raw: string // original string
+  isCustom?: boolean // Flag for user handwritten rules
 }
 
 /** Full parsed Clash config */
