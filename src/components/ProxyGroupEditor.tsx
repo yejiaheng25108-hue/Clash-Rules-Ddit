@@ -98,7 +98,7 @@ export default function ProxyGroupEditor() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ui-card p-6 space-y-6">
       {/* Group Config */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -201,7 +201,7 @@ export default function ProxyGroupEditor() {
               value={nodeSearch}
               onChange={e => setNodeSearch(e.target.value)}
               placeholder="搜索节点..."
-              className="input-base pl-9 py-1.5 text-sm"
+              className="input-base !pl-10 py-1.5 text-sm"
             />
             {nodeSearch && (
               <button
@@ -229,7 +229,7 @@ export default function ProxyGroupEditor() {
                     px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer
                     border
                     ${isSelected
-                      ? 'bg-accent/15 border-accent text-accent shadow-sm shadow-accent-glow'
+                      ? 'bg-accent border-accent text-white shadow-sm shadow-accent/20'
                       : 'bg-bg-input border-border-default text-text-secondary hover:border-accent/40 hover:text-text-primary'
                     }
                   `}
@@ -282,7 +282,7 @@ export default function ProxyGroupEditor() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="搜索策略组（名称、类型、节点）..."
-              className="input-base pl-9 py-2 text-sm"
+              className="input-base !pl-10 py-2 text-sm"
             />
             {search && (
               <button
@@ -322,7 +322,7 @@ export default function ProxyGroupEditor() {
             >
               <div className="flex items-center gap-3">
                 <span className="text-sm font-semibold text-text-primary">{group.name}</span>
-                <span className="text-xs font-mono px-2 py-0.5 rounded bg-accent/15 text-accent">
+                <span className="text-xs font-mono px-2 py-0.5 rounded border border-border-default bg-bg-card text-text-secondary">
                   {group.type}
                 </span>
                 <span className="flex-1" />

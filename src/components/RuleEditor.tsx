@@ -129,7 +129,7 @@ export default function RuleEditor() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ui-card p-6 space-y-6">
       {/* Input Row */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-3 items-end">
         <div>
@@ -200,7 +200,7 @@ export default function RuleEditor() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="搜索规则（域名、类型、代理）..."
-              className="input-base pl-9 py-2 text-sm"
+              className="input-base !pl-10 py-2 text-sm"
             />
             {search && (
               <button
@@ -237,40 +237,55 @@ export default function RuleEditor() {
 
       {/* Rules List */}
       {filteredRules.length > 0 && (
-        <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1">
-          {filteredRules.map(rule => (
-            <div
-              key={rule.id}
-              className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-bg-input
-                         border border-border-default hover:border-accent/30
-                         transition-all duration-200 group"
-            >
-              <span className="text-xs font-mono px-2 py-0.5 rounded bg-accent/15 text-accent font-medium shrink-0">
-                {rule.type}
-              </span>
-              <span className="text-sm text-text-primary font-mono flex-1 truncate">
-                {rule.target || '(MATCH)'}
-              </span>
-              <span className="text-xs text-text-secondary">→</span>
-              <span className="text-sm text-accent-hover font-medium shrink-0">
-                {rule.proxy}
-              </span>
-              {rule.isCustom && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/20 text-accent font-medium shrink-0 ml-1">
-                  自定义
-                </span>
-              )}
-              <button
-                onClick={() => removeRule(rule.id)}
-                className="ml-2 opacity-0 group-hover:opacity-100 text-text-muted hover:text-danger
-                           transition-all duration-200 cursor-pointer shrink-0"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          ))}
+        <div className="border border-border-default rounded-lg overflow-hidden flex flex-col max-h-[360px]">
+          <div className="overflow-y-auto flex-1">
+            <table className="w-full text-left border-collapse text-sm">
+              <thead className="sticky top-0 bg-bg-card-hover border-b border-border-default z-10">
+                <tr className="text-xs text-text-muted font-medium">
+                  <th className="px-4 py-3 font-medium">类型</th>
+                  <th className="px-4 py-3 font-medium">目标</th>
+                  <th className="px-4 py-3 font-medium">策略</th>
+                  <th className="px-4 py-3 font-medium w-16 text-center">操作</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-default">
+              {filteredRules.map(rule => (
+                <tr key={rule.id} className="hover:bg-bg-card-hover/50 transition-colors group">
+                  <td className="px-4 py-3 w-[20%]">
+                    <span className="text-xs px-2 py-1 rounded bg-bg-input border border-border-default font-mono text-text-secondary">
+                      {rule.type}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 w-[45%] font-mono text-sm text-text-primary">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate" title={rule.target || '(MATCH)'}>{rule.target || '(MATCH)'}</span>
+                      {rule.isCustom && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/10 text-accent shrink-0">
+                          自定义
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 w-[20%] font-medium text-sm text-accent">
+                    {rule.proxy}
+                  </td>
+                  <td className="px-4 py-3 w-[15%] text-center">
+                    <button
+                      onClick={() => removeRule(rule.id)}
+                      className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-danger p-1
+                                 transition-all duration-200 inline-flex items-center justify-center cursor-pointer"
+                      title="删除规则"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
