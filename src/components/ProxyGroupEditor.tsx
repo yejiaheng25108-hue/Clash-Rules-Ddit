@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useConfig, type ProxyGroupEdited } from '../ConfigContext'
+import { useLog } from '../LogContext'
 
 const GROUP_TYPES = [
   { value: 'select', label: 'select（手动选择）' },
@@ -12,6 +13,7 @@ let nextId = 100000
 
 export default function ProxyGroupEditor() {
   const { config, editedGroups, setEditedGroups } = useConfig()
+  const { addLog } = useLog()
   const [name, setName] = useState('')
   const [type, setType] = useState('select')
   const [selectedNodes, setSelectedNodes] = useState<string[]>([])
@@ -82,11 +84,16 @@ export default function ProxyGroupEditor() {
       group.interval = testInterval
     }
     setEditedGroups([...groups, group])
+    addLog('add-group', `添加策略组: ${name.trim()} (${type}), 包含 ${selectedNodes.length} 个节点`)
     setName('')
     setSelectedNodes([])
   }
 
   const removeGroup = (id: number) => {
+    const group = groups.find(g => g.id === id)
+    if (group) {
+      addLog('remove-group', `删除策略组: ${group.name} (${group.type})`)
+    }
     setEditedGroups(groups.filter(g => g.id !== id))
   }
 
@@ -293,7 +300,10 @@ export default function ProxyGroupEditor() {
             {search ? `${filteredGroups.length} / ${groups.length}` : `${groups.length} 个`}
           </span>
           <button
-            onClick={() => setEditedGroups([])}
+            onClick={() => {
+              addLog('clear-groups', `清空全部策略组: 共 ${groups.length} 个`)
+              setEditedGroups([])
+            }}
             className="text-xs text-danger hover:text-danger-hover transition-colors cursor-pointer whitespace-nowrap"
           >
             全部清除

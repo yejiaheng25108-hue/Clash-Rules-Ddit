@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { ConfigProvider } from './ConfigContext'
+import { LogProvider } from './LogContext'
 import ConfigImport from './components/ConfigImport'
 import RuleEditor from './components/RuleEditor'
 import ProxyGroupEditor from './components/ProxyGroupEditor'
 import GenerateButton from './components/GenerateButton'
+import LogPanel from './components/LogPanel'
 
 type EditorTab = 'rules' | 'groups'
 
@@ -12,6 +14,7 @@ function App() {
 
   return (
     <ConfigProvider>
+      <LogProvider>
       <div className="min-h-screen py-8 px-4">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Title */}
@@ -73,12 +76,16 @@ function App() {
           {/* Section 3: Generate */}
           <GenerateButton />
 
+          {/* Section 4: Log Panel */}
+          <LogPanel />
+
           {/* Footer */}
           <footer className="text-center text-xs text-text-muted pb-4">
             Clash Rules Manager
           </footer>
         </div>
       </div>
+      </LogProvider>
     </ConfigProvider>
   )
 }

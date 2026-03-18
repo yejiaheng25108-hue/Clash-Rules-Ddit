@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useConfig } from '../ConfigContext'
+import { useLog } from '../LogContext'
 import type { ClashRule } from '../types'
 
 const RULE_TYPES = [
@@ -16,7 +17,8 @@ const BUILTIN_PROXIES = ['DIRECT', 'REJECT']
 let nextId = 100000
 
 export default function RuleEditor() {
-  const { config, editedRules, setEditedRules } = useConfig()
+  const { config, editedRules, setEditedRules, editedGroups } = useConfig()
+  const { addLog } = useLog()
   const [target, setTarget] = useState('')
   const [ruleType, setRuleType] = useState('DOMAIN-SUFFIX')
   const [proxy, setProxy] = useState('DIRECT')
@@ -27,14 +29,13 @@ export default function RuleEditor() {
 
   // Build proxy options from parsed config
   const proxyOptions = useMemo(() => {
-    if (!config) return BUILTIN_PROXIES
     const names = [
       ...BUILTIN_PROXIES,
-      ...config.proxyGroupNames,
-      ...config.proxyNames,
+      ...editedGroups.map(g => g.name),
+      ...(config?.proxyNames ?? []),
     ]
     return [...new Set(names)]
-  }, [config])
+  }, [config, editedGroups])
 
 
 
@@ -62,14 +63,21 @@ export default function RuleEditor() {
     }
     // Add custom rule to the top
     setEditedRules([newRule, ...rules])
+    addLog('add-rule', `添加规则: ${ruleType},${ruleType === 'MATCH' ? '' : target.trim()},${proxy}`)
     if (ruleType !== 'MATCH') setTarget('')
   }
 
   const removeRule = (id: number) => {
+    const rule = rules.find(r => r.id === id)
+    if (rule) {
+      addLog('remove-rule', `删除规则: ${rule.type},${rule.target || '(MATCH)'},${rule.proxy}`)
+    }
     setEditedRules(rules.filter(r => r.id !== id))
   }
 
   const sortAndDedupRules = () => {
+    const beforeCount = rules.length
+
     // 1. 确定排序优先级 (0 最高，4 最低)
     const getCategory = (r: ClashRule) => {
       if (r.isCustom) return 0 // 用户自定义规则
@@ -94,14 +102,24 @@ export default function RuleEditor() {
     // 3. 去重 (保留第一次出现的 type+target)
     const seen = new Set<string>()
     const deduped: ClashRule[] = []
+    const removedRules: string[] = []
 
     for (const r of sorted) {
       const key = `${r.type}:${r.target}`
       if (!seen.has(key)) {
         seen.add(key)
         deduped.push(r)
+      } else {
+        removedRules.push(`${r.type},${r.target || '(MATCH)'},${r.proxy}`)
       }
     }
+
+    const removedCount = beforeCount - deduped.length
+    let detail = `排序去重完成: ${beforeCount} → ${deduped.length} 条规则`
+    if (removedCount > 0) {
+      detail += `，删除 ${removedCount} 条重复: ${removedRules.join('; ')}`
+    }
+    addLog('sort-dedup', detail)
 
     setEditedRules(deduped)
   }
@@ -206,7 +224,10 @@ export default function RuleEditor() {
             排序去重
           </button>
           <button
-            onClick={() => setEditedRules([])}
+            onClick={() => {
+              addLog('clear-rules', `清空全部规则: 共 ${rules.length} 条`)
+              setEditedRules([])
+            }}
             className="text-xs text-danger hover:text-danger-hover transition-colors cursor-pointer whitespace-nowrap"
           >
             全部清除
