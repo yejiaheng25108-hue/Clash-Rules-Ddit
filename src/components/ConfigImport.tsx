@@ -139,7 +139,7 @@ export default function ConfigImport() {
 
         {mode === 'url' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-bold text-text-primary">订阅设置</h3>
               {config ? (
                 <span className="text-[10px] font-bold px-2 py-1 bg-success/15 text-success rounded-md tracking-wider">
@@ -147,8 +147,13 @@ export default function ConfigImport() {
                 </span>
               ) : null}
             </div>
+
+            <div className="bg-accent/10 border-l-[3px] border-accent/60 rounded-r-lg p-3 text-xs leading-relaxed text-text-secondary">
+              <span className="font-bold text-accent mr-1">⚠️ 格式说明：</span>
+              为了保护您的节点隐私，本工具不使用第三方服务器转换订阅。此处<strong className="text-text-primary font-bold">仅支持且强制要求原生 Clash 格式</strong>的订阅链接。如果您拥有的是通用订阅，请先将其导入您的主流代理客户端中，随后导出扩展名为 .yaml 的配置文件，再切至“本地文件”进行解析导入。
+            </div>
             
-            <div className="flex gap-3 items-center">
+            <div className="flex gap-3 items-center mt-2">
               <div className="relative flex-1">
                 <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
