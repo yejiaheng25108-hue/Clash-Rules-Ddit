@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 
 export type PageView = 'import' | 'editor' | 'groups' | 'settings' | 'console'
 
@@ -17,6 +17,7 @@ export default function Layout({
   pageTitle,
   pageDescription
 }: LayoutProps) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   
   const navItems = [
     { section: '平台管理', items: [
@@ -28,8 +29,21 @@ export default function Layout({
 
   return (
     <div className="flex h-screen bg-bg-primary overflow-hidden">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-[260px] bg-bg-sidebar flex flex-col shrink-0 text-text-sidebar">
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-[260px] bg-bg-sidebar flex flex-col shrink-0 text-text-sidebar
+        transform transition-transform duration-300 ease-in-out
+        md:relative md:translate-x-0
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
         {/* Logo */}
         <div className="p-6">
           <div className="flex items-center gap-3 text-accent font-black text-xl tracking-tight">
@@ -60,6 +74,7 @@ export default function Layout({
                         onClick={() => {
                           const el = document.getElementById(`section-${item.id}`)
                           el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          setIsSidebarOpen(false)
                         }}
                         className={`
                           w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
@@ -104,13 +119,23 @@ export default function Layout({
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Top Header */}
-        <header className="h-[72px] shrink-0 border-b border-border-default bg-white/50 backdrop-blur flex items-center px-8 z-10">
+        <header className="h-[72px] shrink-0 border-b border-border-default bg-white/50 backdrop-blur flex items-center px-4 md:px-8 z-10 gap-3">
           
+          <button 
+            className="md:hidden p-2 text-text-secondary hover:text-text-primary hover:bg-black/5 rounded-lg transition-colors"
+            onClick={() => setIsSidebarOpen(true)}
+            aria-label="打开菜单"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
           <div className="flex flex-col">
             <h1 className="text-xl font-extrabold text-text-primary tracking-tight leading-tight">
               {pageTitle}
             </h1>
-            <p className="text-[11px] text-text-secondary mt-0.5">
+            <p className="text-[11px] text-text-secondary mt-0.5 hidden sm:block">
               {pageDescription}
             </p>
           </div>
