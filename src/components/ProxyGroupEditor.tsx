@@ -336,13 +336,16 @@ export default function ProxyGroupEditor() {
           </button>
           <button
             onClick={() => {
-              addLog('clear-groups', `清空全部策略组: 共 ${groups.length} 个`)
+              const selectedGroups = groups.filter(g => g.isSelected)
+              if (selectedGroups.length === 0) return
+              addLog('clear-groups', `清除选定策略组: 共 ${selectedGroups.length} 个`)
               pushGroupsHistory(groups)
-              setEditedGroups([])
+              setEditedGroups(groups.filter(g => !g.isSelected))
             }}
-            className="text-xs text-danger hover:text-danger-hover transition-colors cursor-pointer whitespace-nowrap"
+            disabled={!groups.some(g => g.isSelected)}
+            className="text-xs text-danger hover:text-danger-hover transition-colors cursor-pointer whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            全部清除
+            清除选定
           </button>
         </div>
       )}

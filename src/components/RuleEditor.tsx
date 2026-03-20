@@ -23,7 +23,7 @@ const BUILTIN_PROXIES = ['DIRECT', 'REJECT']
 let nextId = 100000
 
 export default function RuleEditor() {
-  const { config, editedRules, setEditedRules, editedGroups, setEditedGroups, rulesHistory, pushRulesHistory, undoRules } = useConfig()
+  const { config, editedRules, setEditedRules, editedGroups, setEditedGroups, rulesHistory, pushRulesHistory, undoRules, pushGroupsHistory } = useConfig()
   const { addLog } = useLog()
   const [target, setTarget] = useState('')
   const [ruleType, setRuleType] = useState('DOMAIN-SUFFIX')
@@ -123,6 +123,7 @@ export default function RuleEditor() {
         }
 
         if (parsed.proxyGroups && parsed.proxyGroups.length > 0) {
+          pushGroupsHistory(editedGroups)
           const importedGroups = parsed.proxyGroups.map(g => ({
             ...g,
             id: nextId++
@@ -361,13 +362,16 @@ export default function RuleEditor() {
           </button>
           <button
             onClick={() => {
-              addLog('clear-rules', `清空全部规则: 共 ${rules.length} 条`)
+              const selectedRules = rules.filter(r => r.isSelected)
+              if (selectedRules.length === 0) return
+              addLog('clear-rules', `清除选定规则: 共 ${selectedRules.length} 条`)
               pushRulesHistory(rules)
-              setEditedRules([])
+              setEditedRules(rules.filter(r => !r.isSelected))
             }}
-            className="text-xs text-danger hover:text-danger-hover transition-colors cursor-pointer whitespace-nowrap"
+            disabled={!rules.some(r => r.isSelected)}
+            className="text-xs text-danger hover:text-danger-hover transition-colors cursor-pointer whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            全部清除
+            清除选定
           </button>
         </div>
       )}
@@ -395,13 +399,17 @@ export default function RuleEditor() {
               </thead>
               <tbody className="divide-y divide-border-default">
               {filteredRules.map(rule => (
-                <tr key={rule.id} className={`transition-colors group ${rule.isSelected ? 'bg-accent/5' : 'hover:bg-bg-card-hover/50'}`}>
+                <tr 
+                  key={rule.id} 
+                  onClick={() => toggleSelectRule(rule.id)}
+                  className={`transition-colors group cursor-pointer ${rule.isSelected ? 'bg-accent/5' : 'hover:bg-bg-card-hover/50'}`}
+                >
                   <td className="px-4 py-3">
                     <input
                       type="checkbox"
                       checked={!!rule.isSelected}
-                      onChange={() => toggleSelectRule(rule.id)}
-                      className="w-4 h-4 rounded border-border-default bg-bg-card text-accent focus:ring-accent/50 cursor-pointer"
+                      readOnly
+                      className="w-4 h-4 rounded border-border-default bg-bg-card text-accent focus:ring-accent/50 cursor-pointer pointer-events-none"
                     />
                   </td>
                   <td className="px-4 py-3 w-[20%]">
@@ -425,7 +433,7 @@ export default function RuleEditor() {
                   <td className="px-4 py-3 w-[15%] text-center">
                     <div className="flex items-center justify-center gap-2 transition-all duration-200">
                       <button
-                        onClick={() => togglePin(rule.id)}
+                        onClick={(e) => { e.stopPropagation(); togglePin(rule.id) }}
                         className={`p-1 cursor-pointer hover:text-accent transition-colors ${rule.isPinned ? 'text-accent' : 'text-text-muted'}`}
                         title={rule.isPinned ? '取消固定' : '固定规则'}
                       >
@@ -434,7 +442,7 @@ export default function RuleEditor() {
                         </svg>
                       </button>
                       <button
-                        onClick={() => removeRule(rule.id)}
+                        onClick={(e) => { e.stopPropagation(); removeRule(rule.id) }}
                         className="text-text-muted hover:text-danger p-1 cursor-pointer transition-colors"
                         title="删除规则"
                       >
