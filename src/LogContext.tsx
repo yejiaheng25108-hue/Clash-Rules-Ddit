@@ -3,7 +3,8 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 export type LogAction =
   | 'add-rule'
   | 'remove-rule'
-  | 'sort-dedup'
+  | 'sort-rules'
+  | 'dedup-rules'
   | 'clear-rules'
   | 'add-group'
   | 'remove-group'
@@ -12,6 +13,7 @@ export type LogAction =
   | 'unpin-rule'
   | 'undo-rules'
   | 'undo-groups'
+  | 'error'
 
 export interface LogEntry {
   id: number

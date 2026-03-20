@@ -4,7 +4,8 @@ import { useLog, type LogAction } from '../LogContext'
 const ACTION_LABELS: Record<LogAction, { icon: string; label: string; color: string }> = {
   'add-rule': { icon: '＋', label: '添加规则', color: 'text-[#34d399]' },
   'remove-rule': { icon: '−', label: '删除规则', color: 'text-[#f87171]' },
-  'sort-dedup': { icon: '⇅', label: '排序去重', color: 'text-[#818cf8]' },
+  'sort-rules': { icon: '⇕', label: '排序规则', color: 'text-[#38bdf8]' },
+  'dedup-rules': { icon: '✂', label: '去重规则', color: 'text-[#38bdf8]' },
   'clear-rules': { icon: '✕', label: '清空规则', color: 'text-[#fb923c]' },
   'add-group': { icon: '＋', label: '添加策略组', color: 'text-[#34d399]' },
   'remove-group': { icon: '−', label: '删除策略组', color: 'text-[#f87171]' },
@@ -13,6 +14,7 @@ const ACTION_LABELS: Record<LogAction, { icon: string; label: string; color: str
   'unpin-rule': { icon: '📍', label: '取消固定', color: 'text-[#9ca3af]' },
   'undo-rules': { icon: '↶', label: '撤回规则操作', color: 'text-[#a78bfa]' },
   'undo-groups': { icon: '↶', label: '撤回策略组操作', color: 'text-[#a78bfa]' },
+  'error': { icon: '⚠', label: '系统错误', color: 'text-danger' },
 }
 
 function formatTime(date: Date) {
@@ -49,7 +51,7 @@ export default function LogPanel({ embedded, sidebar }: LogPanelProps = {}) {
           {logs.length > 0 ? (
             <div className="space-y-1.5">
               {logs.map(log => {
-                const meta = ACTION_LABELS[log.action]
+                const meta = ACTION_LABELS[log.action] || { icon: 'ℹ', label: String(log.action), color: 'text-text-muted' }
                 return (
                   <div key={log.id} className="flex flex-col gap-0.5 py-1 hover:bg-white/5 px-1.5 rounded">
                     <div className="flex items-center gap-2">
@@ -125,7 +127,7 @@ export default function LogPanel({ embedded, sidebar }: LogPanelProps = {}) {
             {logs.length > 0 ? (
               <div className="space-y-1">
                 {logs.map(log => {
-                  const meta = ACTION_LABELS[log.action]
+                  const meta = ACTION_LABELS[log.action] || { icon: 'ℹ', label: String(log.action), color: 'text-white/50' }
                   return (
                     <div key={log.id} className="flex items-start gap-3 py-0.5 hover:bg-white/5 px-2 rounded">
                       <span className="text-white/40 shrink-0 select-none">
@@ -191,7 +193,7 @@ export default function LogPanel({ embedded, sidebar }: LogPanelProps = {}) {
           {logs.length > 0 ? (
             <div className="space-y-1.5 max-h-[240px] overflow-y-auto pr-1">
               {logs.map(log => {
-                const meta = ACTION_LABELS[log.action]
+                const meta = ACTION_LABELS[log.action] || { icon: 'ℹ', label: String(log.action), color: 'text-text-muted' }
                 return (
                   <div
                     key={log.id}

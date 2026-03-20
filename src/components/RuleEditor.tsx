@@ -139,7 +139,7 @@ export default function RuleEditor() {
           ].filter(Boolean).join(' 和 ')
           addLog('add-rule', `从 ${file.name} 导入了 ${msg}`)
         } else {
-          addLog('sort-dedup', `文件中未找到任何规则或策略组: ${file.name}`)
+          addLog('error', `文件中未找到任何规则或策略组: ${file.name}`)
         }
       } catch (err) {
         addLog('clear-rules', `YAML 解析失败: ${err instanceof Error ? err.message : String(err)}`)
@@ -177,9 +177,7 @@ export default function RuleEditor() {
     }
   }
 
-  const sortAndDedupRules = () => {
-    const beforeCount = rules.length
-
+  const sortRules = () => {
     // 1. 确定排序优先级 (0 最高，4 最低)
     const getCategory = (r: ClashRule) => {
       if (r.isPinned) return -1
@@ -202,12 +200,18 @@ export default function RuleEditor() {
       return (a.target || '').localeCompare(b.target || '')
     })
 
-    // 3. 去重 (保留第一次出现的 type+target)
+    addLog('sort-rules', `规则排序完成: 共 ${sorted.length} 条`)
+    pushRulesHistory(rules)
+    setEditedRules(sorted)
+  }
+
+  const dedupRules = () => {
+    const beforeCount = rules.length
     const seen = new Set<string>()
     const deduped: ClashRule[] = []
     const removedRules: string[] = []
 
-    for (const r of sorted) {
+    for (const r of rules) {
       const key = `${r.type}:${r.target}`
       if (!seen.has(key)) {
         seen.add(key)
@@ -218,14 +222,13 @@ export default function RuleEditor() {
     }
 
     const removedCount = beforeCount - deduped.length
-    let detail = `排序去重完成: ${beforeCount} → ${deduped.length} 条规则`
     if (removedCount > 0) {
-      detail += `，删除 ${removedCount} 条重复: ${removedRules.join('; ')}`
+      addLog('dedup-rules', `去重完成: 删除了 ${removedCount} 条重复规则`)
+      pushRulesHistory(rules)
+      setEditedRules(deduped)
+    } else {
+      addLog('dedup-rules', `未发现重复规则`)
     }
-    addLog('sort-dedup', detail)
-
-    pushRulesHistory(rules)
-    setEditedRules(deduped)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -355,10 +358,16 @@ export default function RuleEditor() {
             撤回
           </button>
           <button
-            onClick={sortAndDedupRules}
+            onClick={sortRules}
             className="text-xs text-accent hover:text-accent-hover transition-colors cursor-pointer whitespace-nowrap"
           >
-            排序去重
+            排序
+          </button>
+          <button
+            onClick={dedupRules}
+            className="text-xs text-accent hover:text-accent-hover transition-colors cursor-pointer whitespace-nowrap"
+          >
+            去重
           </button>
           <button
             onClick={() => {
