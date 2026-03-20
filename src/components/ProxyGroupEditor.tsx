@@ -12,7 +12,7 @@ const GROUP_TYPES = [
 let nextId = 100000
 
 export default function ProxyGroupEditor() {
-  const { config, editedGroups, setEditedGroups } = useConfig()
+  const { config, editedGroups, setEditedGroups, groupsHistory, pushGroupsHistory, undoGroups } = useConfig()
   const { addLog } = useLog()
   const [name, setName] = useState('')
   const [type, setType] = useState('select')
@@ -83,6 +83,7 @@ export default function ProxyGroupEditor() {
       group.url = testUrl
       group.interval = testInterval
     }
+    pushGroupsHistory(groups)
     setEditedGroups([...groups, group])
     addLog('add-group', `添加策略组: ${name.trim()} (${type}), 包含 ${selectedNodes.length} 个节点`)
     setName('')
@@ -94,7 +95,24 @@ export default function ProxyGroupEditor() {
     if (group) {
       addLog('remove-group', `删除策略组: ${group.name} (${group.type})`)
     }
+    pushGroupsHistory(groups)
     setEditedGroups(groups.filter(g => g.id !== id))
+  }
+
+  const toggleSelectGroup = (id: number) => {
+    setEditedGroups(groups.map(g => 
+      g.id === id ? { ...g, isSelected: !g.isSelected } : g
+    ))
+  }
+
+  const toggleSelectAllGroups = () => {
+    const allSelected = filteredGroups.length > 0 && filteredGroups.every(g => g.isSelected)
+    setEditedGroups(groups.map(g => {
+      if (filteredGroups.find(fg => fg.id === g.id)) {
+        return { ...g, isSelected: !allSelected }
+      }
+      return g
+    }))
   }
 
   return (
@@ -270,7 +288,7 @@ export default function ProxyGroupEditor() {
       </div>
 
       {/* Search bar for groups list */}
-      {groups.length > 0 && (
+      {(groups.length > 0 || groupsHistory.length > 0) && (
         <div className="flex items-center gap-3">
           <div className="relative flex-1">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -301,7 +319,25 @@ export default function ProxyGroupEditor() {
           </span>
           <button
             onClick={() => {
+              if (groupsHistory.length === 0) return
+              addLog('undo-groups', `撤回策略组操作`)
+              undoGroups()
+            }}
+            disabled={groupsHistory.length === 0}
+            className="text-xs text-blue-500 hover:text-blue-400 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            撤回
+          </button>
+          <button
+            onClick={toggleSelectAllGroups}
+            className="text-xs text-accent hover:text-accent-hover transition-colors cursor-pointer whitespace-nowrap"
+          >
+            {filteredGroups.length > 0 && filteredGroups.every(g => g.isSelected) ? '取消全选' : '全选'}
+          </button>
+          <button
+            onClick={() => {
               addLog('clear-groups', `清空全部策略组: 共 ${groups.length} 个`)
+              pushGroupsHistory(groups)
               setEditedGroups([])
             }}
             className="text-xs text-danger hover:text-danger-hover transition-colors cursor-pointer whitespace-nowrap"
@@ -317,10 +353,17 @@ export default function ProxyGroupEditor() {
           {filteredGroups.map(group => (
             <div
               key={group.id}
-              className="px-4 py-3 rounded-lg bg-bg-input border border-border-default
-                         hover:border-accent/30 transition-all duration-200 group"
+              onClick={() => toggleSelectGroup(group.id)}
+              className={`px-4 py-3 rounded-lg bg-bg-input border transition-all duration-200 group cursor-pointer
+                         ${group.isSelected ? 'border-accent shadow-sm shadow-accent/10' : 'border-border-default hover:border-accent/30'}`}
             >
               <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={!!group.isSelected}
+                  readOnly
+                  className="w-4 h-4 rounded border-border-default bg-bg-card text-accent focus:ring-accent/50 cursor-pointer pointer-events-none shrink-0"
+                />
                 <span className="text-sm font-semibold text-text-primary">{group.name}</span>
                 <span className="text-xs font-mono px-2 py-0.5 rounded border border-border-default bg-bg-card text-text-secondary">
                   {group.type}
@@ -328,7 +371,7 @@ export default function ProxyGroupEditor() {
                 <span className="flex-1" />
                 <span className="text-xs text-text-muted">{group.proxies.length} 个节点</span>
                 <button
-                  onClick={() => removeGroup(group.id)}
+                  onClick={(e) => { e.stopPropagation(); removeGroup(group.id) }}
                   className="text-text-muted hover:text-danger transition-all duration-200 cursor-pointer"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">

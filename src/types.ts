@@ -28,6 +28,7 @@ export interface ClashRule {
   raw: string // original string
   isCustom?: boolean // Flag for user handwritten rules
   isPinned?: boolean // Flag for pinned rule
+  isSelected?: boolean // Flag for selected rule
 }
 
 /** Full parsed Clash config */

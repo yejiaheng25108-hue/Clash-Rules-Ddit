@@ -8,6 +8,7 @@ interface ProxyGroupEdited {
   proxies: string[]
   url?: string
   interval?: number
+  isSelected?: boolean
 }
 
 interface ConfigContextValue {
@@ -23,6 +24,9 @@ interface ConfigContextValue {
   undoRules: () => void
   editedGroups: ProxyGroupEdited[]
   setEditedGroups: (groups: ProxyGroupEdited[]) => void
+  groupsHistory: ProxyGroupEdited[][]
+  pushGroupsHistory: (groups: ProxyGroupEdited[]) => void
+  undoGroups: () => void
 }
 
 export type ImportStatus =
@@ -41,6 +45,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const [editedRules, setEditedRules] = useState<ClashRule[]>([])
   const [editedGroups, setEditedGroups] = useState<ProxyGroupEdited[]>([])
   const [rulesHistory, setRulesHistory] = useState<ClashRule[][]>([])
+  const [groupsHistory, setGroupsHistory] = useState<ProxyGroupEdited[][]>([])
 
   const pushRulesHistory = (rules: ClashRule[]) => {
     setRulesHistory(prev => [...prev.slice(-19), rules])
@@ -54,6 +59,18 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const pushGroupsHistory = (groups: ProxyGroupEdited[]) => {
+    setGroupsHistory(prev => [...prev.slice(-19), groups])
+  }
+
+  const undoGroups = () => {
+    if (groupsHistory.length > 0) {
+      const prev = groupsHistory[groupsHistory.length - 1]
+      setGroupsHistory(h => h.slice(0, -1))
+      setEditedGroups(prev)
+    }
+  }
+
   return (
     <ConfigContext.Provider value={{
       config, setConfig,
@@ -61,6 +78,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
       editedRules, setEditedRules,
       rulesHistory, pushRulesHistory, undoRules,
       editedGroups, setEditedGroups,
+      groupsHistory, pushGroupsHistory, undoGroups,
     }}>
       {children}
     </ConfigContext.Provider>

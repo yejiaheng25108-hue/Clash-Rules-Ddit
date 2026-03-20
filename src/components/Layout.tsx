@@ -1,4 +1,5 @@
 import { type ReactNode, useState } from 'react'
+import ExportSelectedButton from './ExportSelectedButton'
 
 export type PageView = 'import' | 'editor' | 'groups' | 'settings' | 'console'
 
@@ -93,6 +94,7 @@ export default function Layout({
               </ul>
             </div>
           ))}
+          <ExportSelectedButton />
         </nav>
 
         {/* Embedded Sidebar Logs */}

@@ -11,6 +11,7 @@ export type LogAction =
   | 'pin-rule'
   | 'unpin-rule'
   | 'undo-rules'
+  | 'undo-groups'
 
 export interface LogEntry {
   id: number

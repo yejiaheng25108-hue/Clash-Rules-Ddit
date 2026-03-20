@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useConfig } from '../ConfigContext'
+import { parseClashYaml } from '../utils/parser'
 import { useLog } from '../LogContext'
 import type { ClashRule } from '../types'
 
@@ -8,7 +9,12 @@ const RULE_TYPES = [
   'DOMAIN-SUFFIX',
   'DOMAIN-KEYWORD',
   'IP-CIDR',
+  'IP-CIDR6',
   'GEOIP',
+  'DST-PORT',
+  'SRC-PORT',
+  'SRC-IP-CIDR',
+  'PROCESS-NAME',
   'MATCH',
 ]
 
@@ -17,7 +23,7 @@ const BUILTIN_PROXIES = ['DIRECT', 'REJECT']
 let nextId = 100000
 
 export default function RuleEditor() {
-  const { config, editedRules, setEditedRules, editedGroups, rulesHistory, pushRulesHistory, undoRules } = useConfig()
+  const { config, editedRules, setEditedRules, editedGroups, setEditedGroups, rulesHistory, pushRulesHistory, undoRules } = useConfig()
   const { addLog } = useLog()
   const [target, setTarget] = useState('')
   const [ruleType, setRuleType] = useState('DOMAIN-SUFFIX')
@@ -75,6 +81,71 @@ export default function RuleEditor() {
     }
     pushRulesHistory(rules)
     setEditedRules(rules.filter(r => r.id !== id))
+  }
+
+  const toggleSelectRule = (id: number) => {
+    setEditedRules(rules.map(r => 
+      r.id === id ? { ...r, isSelected: !r.isSelected } : r
+    ))
+  }
+
+  const toggleSelectAllRules = () => {
+    const allSelected = filteredRules.length > 0 && filteredRules.every(r => r.isSelected)
+    setEditedRules(rules.map(r => {
+      if (filteredRules.find(fr => fr.id === r.id)) {
+        return { ...r, isSelected: !allSelected }
+      }
+      return r
+    }))
+  }
+
+  const handleYamlImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        const text = ev.target?.result as string
+        const parsed = parseClashYaml(text)
+        
+        let importedRuleCount = 0
+        let importedGroupCount = 0
+
+        if (parsed.rules.length > 0) {
+          pushRulesHistory(rules)
+          const importedRules = parsed.rules.map((r) => ({
+            ...r,
+            id: nextId++,
+            isPinned: true
+          }))
+          setEditedRules([...importedRules, ...rules])
+          importedRuleCount = parsed.rules.length
+        }
+
+        if (parsed.proxyGroups && parsed.proxyGroups.length > 0) {
+          const importedGroups = parsed.proxyGroups.map(g => ({
+            ...g,
+            id: nextId++
+          }))
+          setEditedGroups([...editedGroups, ...importedGroups])
+          importedGroupCount = parsed.proxyGroups.length
+        }
+
+        if (importedRuleCount > 0 || importedGroupCount > 0) {
+          const msg = [
+            importedRuleCount > 0 ? `${importedRuleCount} 条规则` : '',
+            importedGroupCount > 0 ? `${importedGroupCount} 个策略组` : ''
+          ].filter(Boolean).join(' 和 ')
+          addLog('add-rule', `从 ${file.name} 导入了 ${msg}`)
+        } else {
+          addLog('sort-dedup', `文件中未找到任何规则或策略组: ${file.name}`)
+        }
+      } catch (err) {
+        addLog('clear-rules', `YAML 解析失败: ${err instanceof Error ? err.message : String(err)}`)
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
   }
 
   const togglePin = (id: number) => {
@@ -162,6 +233,28 @@ export default function RuleEditor() {
 
   return (
     <div className="ui-card p-6 space-y-6">
+      {/* YAML Import Container */}
+      <div className="flex flex-col gap-2 rounded-xl border-2 border-dashed border-border-default/80 bg-bg-card/30 p-4 text-center hover:border-accent/40 hover:bg-bg-input/50 transition-all cursor-pointer relative group">
+        <input 
+          type="file" 
+          accept=".yaml,.yml,text/yaml" 
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          onChange={handleYamlImport}
+          title="点击或拖拽 YAML 文件导入规则"
+        />
+        <svg className="w-6 h-6 mx-auto text-text-muted group-hover:text-accent transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-text-secondary group-hover:text-text-primary">
+            快速导入本地 .yaml 规则
+          </p>
+          <p className="text-[11px] text-text-muted">
+            解析出的规则将默认固定在最上方
+          </p>
+        </div>
+      </div>
+
       {/* Input Row */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-3 items-end">
         <div>
@@ -220,7 +313,7 @@ export default function RuleEditor() {
       </div>
 
       {/* Search + Stats */}
-      {rules.length > 0 && (
+      {(rules.length > 0 || rulesHistory.length > 0) && (
         <div className="flex items-center gap-3">
           <div className="relative flex-1">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -286,6 +379,14 @@ export default function RuleEditor() {
             <table className="w-full text-left border-collapse text-sm">
               <thead className="sticky top-0 bg-bg-card-hover border-b border-border-default z-10">
                 <tr className="text-xs text-text-muted font-medium">
+                  <th className="px-4 py-3 font-medium w-10">
+                    <input
+                      type="checkbox"
+                      checked={filteredRules.length > 0 && filteredRules.every(r => r.isSelected)}
+                      onChange={toggleSelectAllRules}
+                      className="w-4 h-4 rounded border-border-default bg-bg-card text-accent focus:ring-accent/50 cursor-pointer"
+                    />
+                  </th>
                   <th className="px-4 py-3 font-medium">类型</th>
                   <th className="px-4 py-3 font-medium">目标</th>
                   <th className="px-4 py-3 font-medium">策略</th>
@@ -294,7 +395,15 @@ export default function RuleEditor() {
               </thead>
               <tbody className="divide-y divide-border-default">
               {filteredRules.map(rule => (
-                <tr key={rule.id} className="hover:bg-bg-card-hover/50 transition-colors group">
+                <tr key={rule.id} className={`transition-colors group ${rule.isSelected ? 'bg-accent/5' : 'hover:bg-bg-card-hover/50'}`}>
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={!!rule.isSelected}
+                      onChange={() => toggleSelectRule(rule.id)}
+                      className="w-4 h-4 rounded border-border-default bg-bg-card text-accent focus:ring-accent/50 cursor-pointer"
+                    />
+                  </td>
                   <td className="px-4 py-3 w-[20%]">
                     <span className="text-xs px-2 py-1 rounded bg-bg-input border border-border-default font-mono text-text-secondary">
                       {rule.type}
