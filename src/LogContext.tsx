@@ -8,6 +8,9 @@ export type LogAction =
   | 'add-group'
   | 'remove-group'
   | 'clear-groups'
+  | 'pin-rule'
+  | 'unpin-rule'
+  | 'undo-rules'
 
 export interface LogEntry {
   id: number

@@ -17,7 +17,7 @@ const BUILTIN_PROXIES = ['DIRECT', 'REJECT']
 let nextId = 100000
 
 export default function RuleEditor() {
-  const { config, editedRules, setEditedRules, editedGroups } = useConfig()
+  const { config, editedRules, setEditedRules, editedGroups, rulesHistory, pushRulesHistory, undoRules } = useConfig()
   const { addLog } = useLog()
   const [target, setTarget] = useState('')
   const [ruleType, setRuleType] = useState('DOMAIN-SUFFIX')
@@ -62,6 +62,7 @@ export default function RuleEditor() {
       isCustom: true,
     }
     // Add custom rule to the top
+    pushRulesHistory(rules)
     setEditedRules([newRule, ...rules])
     addLog('add-rule', `添加规则: ${ruleType},${ruleType === 'MATCH' ? '' : target.trim()},${proxy}`)
     if (ruleType !== 'MATCH') setTarget('')
@@ -72,7 +73,36 @@ export default function RuleEditor() {
     if (rule) {
       addLog('remove-rule', `删除规则: ${rule.type},${rule.target || '(MATCH)'},${rule.proxy}`)
     }
+    pushRulesHistory(rules)
     setEditedRules(rules.filter(r => r.id !== id))
+  }
+
+  const togglePin = (id: number) => {
+    const index = rules.findIndex(r => r.id === id)
+    if (index > -1) {
+      const rule = rules[index]
+      const isPinned = !rule.isPinned
+      
+      let newRules = [...rules]
+      newRules.splice(index, 1)
+      const updatedRule = { ...rule, isPinned }
+      
+      if (isPinned) {
+        newRules.unshift(updatedRule)
+        addLog('pin-rule', `固定规则在最上方: ${rule.type},${rule.target || '(MATCH)'},${rule.proxy}`)
+      } else {
+        const lastPinnedIndex = (() => {
+          for (let i = newRules.length - 1; i >= 0; i--) {
+            if (newRules[i].isPinned) return i
+          }
+          return -1
+        })()
+        newRules.splice(lastPinnedIndex + 1, 0, updatedRule)
+        addLog('unpin-rule', `取消固定规则: ${rule.type},${rule.target || '(MATCH)'},${rule.proxy}`)
+      }
+      pushRulesHistory(rules)
+      setEditedRules(newRules)
+    }
   }
 
   const sortAndDedupRules = () => {
@@ -80,6 +110,7 @@ export default function RuleEditor() {
 
     // 1. 确定排序优先级 (0 最高，4 最低)
     const getCategory = (r: ClashRule) => {
+      if (r.isPinned) return -1
       if (r.isCustom) return 0 // 用户自定义规则
       if (r.type === 'MATCH') return 4 // 兜底规则
       if (r.type.includes('IP') || r.type.includes('GEO')) return 3 // IP与地理位置
@@ -121,6 +152,7 @@ export default function RuleEditor() {
     }
     addLog('sort-dedup', detail)
 
+    pushRulesHistory(rules)
     setEditedRules(deduped)
   }
 
@@ -218,6 +250,17 @@ export default function RuleEditor() {
             {search ? `${filteredRules.length} / ${rules.length}` : `${rules.length} 条`}
           </span>
           <button
+            onClick={() => {
+              if (rulesHistory.length === 0) return
+              addLog('undo-rules', `撤回操作`)
+              undoRules()
+            }}
+            disabled={rulesHistory.length === 0}
+            className="text-xs text-blue-500 hover:text-blue-400 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            撤回
+          </button>
+          <button
             onClick={sortAndDedupRules}
             className="text-xs text-accent hover:text-accent-hover transition-colors cursor-pointer whitespace-nowrap"
           >
@@ -226,6 +269,7 @@ export default function RuleEditor() {
           <button
             onClick={() => {
               addLog('clear-rules', `清空全部规则: 共 ${rules.length} 条`)
+              pushRulesHistory(rules)
               setEditedRules([])
             }}
             className="text-xs text-danger hover:text-danger-hover transition-colors cursor-pointer whitespace-nowrap"
@@ -270,16 +314,26 @@ export default function RuleEditor() {
                     {rule.proxy}
                   </td>
                   <td className="px-4 py-3 w-[15%] text-center">
-                    <button
-                      onClick={() => removeRule(rule.id)}
-                      className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-danger p-1
-                                 transition-all duration-200 inline-flex items-center justify-center cursor-pointer"
-                      title="删除规则"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    <div className="flex items-center justify-center gap-2 transition-all duration-200">
+                      <button
+                        onClick={() => togglePin(rule.id)}
+                        className={`p-1 cursor-pointer hover:text-accent transition-colors ${rule.isPinned ? 'text-accent' : 'text-text-muted'}`}
+                        title={rule.isPinned ? '取消固定' : '固定规则'}
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => removeRule(rule.id)}
+                        className="text-text-muted hover:text-danger p-1 cursor-pointer transition-colors"
+                        title="删除规则"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

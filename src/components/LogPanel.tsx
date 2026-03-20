@@ -9,6 +9,9 @@ const ACTION_LABELS: Record<LogAction, { icon: string; label: string; color: str
   'add-group': { icon: '＋', label: '添加策略组', color: 'text-[#34d399]' },
   'remove-group': { icon: '−', label: '删除策略组', color: 'text-[#f87171]' },
   'clear-groups': { icon: '✕', label: '清空策略组', color: 'text-[#fb923c]' },
+  'pin-rule': { icon: '📌', label: '固定规则', color: 'text-[#60a5fa]' },
+  'unpin-rule': { icon: '📍', label: '取消固定', color: 'text-[#9ca3af]' },
+  'undo-rules': { icon: '↶', label: '撤回操作', color: 'text-[#a78bfa]' },
 }
 
 function formatTime(date: Date) {

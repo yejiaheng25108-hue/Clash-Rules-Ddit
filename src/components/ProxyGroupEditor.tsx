@@ -329,8 +329,7 @@ export default function ProxyGroupEditor() {
                 <span className="text-xs text-text-muted">{group.proxies.length} 个节点</span>
                 <button
                   onClick={() => removeGroup(group.id)}
-                  className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-danger
-                             transition-all duration-200 cursor-pointer"
+                  className="text-text-muted hover:text-danger transition-all duration-200 cursor-pointer"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
